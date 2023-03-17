@@ -1,0 +1,24 @@
+#cloud-config
+{% set _host_key = lookup('file', virt_install_nocloud_host_ssh_public_key) | default(omit) %}
+{% if _host_key or virt_install_nocloud_user_ssh_keys %}
+ssh_authorized_keys:
+{% if _host_key %}
+  - {{ _host_key }}
+{% endif %}
+{% if virt_install_nocloud_user_ssh_keys %}
+{% for _ssh_key in virt_install_nocloud_user_ssh_keys %}
+  - {{ _ssh_key }}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% if virt_install_nocloud_rhsm_register %}
+rh_subscription:
+  activation-key: {{ virt_install_nocloud_rhsm_activation_key }}
+  org: {{ virt_install_nocloud_rhsm_org }}
+  auto-attach: {{ virt_install_nocloud_rhsm_autoattach }}
+  service-level: {{ virt_install_nocloud_rhsm_service_level }}
+package_upgrade: {{ virt_install_nocloud_rhsm_package_upgrade }}
+{% endif %}
+{% if virt_install_nocloud_extra_cloud_config %}
+{{ virt_install_nocloud_extra_cloud_config | to_nice_yaml }}
+{% endif %}

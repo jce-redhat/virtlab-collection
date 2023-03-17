@@ -1,0 +1,71 @@
+---
+## defaults for basic guest config info
+virt_install_nocloud_name: testvm
+virt_install_nocloud_vcpus: 1
+virt_install_nocloud_memory: 4096
+virt_install_nocloud_disk_size: 20G
+virt_install_nocloud_autostart: true
+virt_install_nocloud_pxeboot: false
+
+virt_install_nocloud_backing_disk: rhel-9.1-x86_64-kvm.qcow2
+virt_install_nocloud_backing_disk_copy: false
+virt_install_nocloud_image_dir: /var/lib/libvirt/images
+virt_install_nocloud_image_mode: 0640
+virt_install_nocloud_image_cidata_mode: 0400
+# TODO move this into a set_fact task, conditional when backing disk name starts with 'rhel-'
+virt_install_nocloud_os_variant: "{{ virt_install_nocloud_backing_disk | regex_replace('^.*-([0-9]+[.][0-9]+)-.*$', 'rhel\\1') }}"
+
+## host networking
+# list of interfaces to create, must either define a libvirt network
+# (e.g. 'network: default') or a host bridge device ('bridge: br0').
+# may optionally define a mac address for the interface ('mac: <mac_addr>')
+virt_install_nocloud_host_networks:
+  - network: default
+
+## guest networking
+virt_install_nocloud_guest_interfaces:
+  - name: eth0
+    dhcp4: true
+    dhcp6: false
+# static example
+#  - name: eth0
+#    dhcp4: false
+#    dhcp6: false
+#    addrs:
+#      - '{{ "192.168.122.0/24" | ansible.utils.nthhost( range(-20,-11) | random ) }}'
+#    gateway4: '{{ "192.168.122.0/24" | ansible.utils.nthhost(1) }}'
+#    nameservers:
+#      - 1.1.1.1
+#      - 1.0.0.1
+
+# use cloud config templates for post installation configuration
+virt_install_nocloud_use_cloudinit: true
+
+# set to true in order to run nested VMs inside the guest
+virt_install_nocloud_nested_virt: false
+
+# variables for subscription manager
+virt_install_nocloud_rhsm_register: false
+virt_install_nocloud_rhsm_autoattach: true
+virt_install_nocloud_rhsm_service_level: self-support
+virt_install_nocloud_rhsm_package_upgrade: false
+# these should be set in the calling play, ideally from vaulted variables
+virt_install_nocloud_rhsm_activation_key: ''
+virt_install_nocloud_rhsm_org: ''
+
+# ssh public key added to cloud config for logging in to the default
+# cloud-init user account
+virt_install_nocloud_host_ssh_public_key: '~/.ssh/virtlab-key.pub'
+
+# additional ssh public keys to add to the default cloud-user account
+virt_install_nocloud_user_ssh_keys: []
+
+# additional cloud-config user-data can be added to the template using
+# this variable
+virt_install_nocloud_extra_cloud_config: {}
+
+# additional interface definitions can be added to the network-config
+# template using this variable
+virt_install_nocloud_extra_interfaces: {}
+
+...

@@ -1,0 +1,14 @@
+---
+- name: Check if VM already exists
+  # noqa no-changed-when
+  ansible.builtin.command: >
+    virsh domid {{ virt_install_nocloud_name }}
+  register: _domid
+  ignore_errors: true
+
+- name: Create VM
+  ansible.builtin.include_tasks: create_vm.yml
+  when: _domid.failed
+
+...
+# vim: ft=yaml.ansible

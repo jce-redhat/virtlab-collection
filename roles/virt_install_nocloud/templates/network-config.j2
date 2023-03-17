@@ -1,0 +1,18 @@
+version: 2
+ethernets:
+{% for _int in virt_install_nocloud_guest_interfaces %}
+  {{ _int.name }}:
+    dhcp4: {{ _int.dhcp4 | default('true')  }}
+    dhcp6: {{ _int.dhcp6 | default('false')  }}
+{% if _int.addrs is defined %}
+    addresses:
+{% for _addr in _int.addrs %}
+      - {{ _addr }}
+{% endfor %}
+{% if _int.gateway4 is defined %}
+    gateway4: {{ _int.gateway4 }}
+{% endif %}
+    nameservers:
+      addresses: {{ _int.nameservers | default(['1.1.1.1','1.0.0.1']) }}
+{% endif %}
+{% endfor %}

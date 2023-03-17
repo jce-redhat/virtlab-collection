@@ -1,0 +1,18 @@
+---
+namespace: jce_redhat
+name: virtlab
+description: Collection for supporting a libvirt-based home lab
+version: 1.0.0
+readme: README.md
+authors:
+  - Chris Edillon <jce@redhat.com>
+license:
+  - MIT
+tags:
+  - linux
+  - rhel
+  - libvirt
+  - virtlab
+repository: https://github.com/jce-redhat/virtlab-collection
+
+...

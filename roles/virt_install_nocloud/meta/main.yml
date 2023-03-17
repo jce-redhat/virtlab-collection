@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: Chris Edillon
+  description: Build a libvirt VM using virt-install and the cloud-init NoCloud datasource
+  license: MIT
+  min_ansible_version: "2.12"
+
+  platforms:
+    - name: EL
+      releases:
+        - 8
+        - 9
+
+  galaxy_tags:
+    - linux
+    - rhel
+    - libvirt
+    - virtlab
+
+dependencies: []
+
+...

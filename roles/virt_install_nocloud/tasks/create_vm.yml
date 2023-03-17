@@ -1,0 +1,113 @@
+---
+- name: Check existence of backing disk
+  ansible.builtin.stat:
+    path: '{{ virt_install_nocloud_image_dir }}/{{ virt_install_nocloud_backing_disk }}'
+  register: _backing_disk
+
+- name: Fail if backing disk is not present
+  ansible.builtin.fail:
+    msg: 'Backing disk {{ virt_install_nocloud_image_dir }}/{{ virt_install_nocloud_backing_disk }} does not exist'
+  when:
+    - not _backing_disk.stat.exists | bool
+
+- name: Create virtual machine disk
+  ansible.builtin.command: >
+    qemu-img create -f qcow2
+        -o size={{ virt_install_nocloud_disk_size }}
+        -b {{ virt_install_nocloud_backing_disk }}
+        -F qcow2 {{ virt_install_nocloud_name }}.qcow2
+  args:
+    chdir: '{{ virt_install_nocloud_image_dir }}'
+    creates: '{{ virt_install_nocloud_name }}.qcow2'
+
+- name: Set virtual machine disk absolute path fact
+  ansible.builtin.set_fact:
+    _vm_name_abspath: '{{ virt_install_nocloud_image_dir }}/{{ virt_install_nocloud_name }}'
+
+- name: Set virtual machine disk permissions
+  ansible.builtin.file:
+    path: '{{ _vm_name_abspath }}.qcow2'
+    mode: '{{ virt_install_nocloud_image_mode }}'
+
+- name: Check existence of cidata ISO
+  ansible.builtin.stat:
+    path: '{{ _vm_name_abspath }}-cidata.iso'
+  register: _cidata
+
+- name: Create cloud-init files
+  when:
+    - virt_install_nocloud_use_cloudinit | bool
+    - not _cidata.stat.exists
+  block:
+    - name: Create temp directory for cloud-init files
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -virt_install_nocloud
+      register: _virt_install_nocloud_temp_dir
+
+    - name: Create meta-data file
+      ansible.builtin.template:
+        src: meta-data.j2
+        dest: '{{ _virt_install_nocloud_temp_dir.path }}/meta-data'
+        mode: 0644
+
+    - name: Create user-data file
+      ansible.builtin.template:
+        src: user-data.j2
+        dest: '{{ _virt_install_nocloud_temp_dir.path }}/user-data'
+        mode: 0644
+
+    - name: Create network-config file
+      ansible.builtin.template:
+        src: network-config.j2
+        dest: '{{ _virt_install_nocloud_temp_dir.path }}/network-config'
+        mode: 0644
+
+    - name: Create cidata ISO
+      ansible.builtin.command: >
+        genisoimage
+          -output {{ _vm_name_abspath }}-cidata.iso
+          -V cidata -r -J user-data meta-data network-config
+      args:
+        chdir: '{{ _virt_install_nocloud_temp_dir.path }}'
+        creates: '{{ _vm_name_abspath }}-cidata.iso'
+
+    - name: Set perms on cidata ISO
+      ansible.builtin.file:
+        path: '{{ _vm_name_abspath }}-cidata.iso'
+        owner: qemu
+        group: qemu
+        mode: '{{ virt_install_nocloud_image_cidata_mode }}'
+  always:
+    - name: Remove temp directory
+      ansible.builtin.file:
+        path: '{{ _virt_install_nocloud_temp_dir.path | default("") }}'
+        state: absent
+      when: _virt_install_nocloud_temp_dir is defined
+
+- name: Create virtual machine "{{ virt_install_nocloud_name }}"
+  ansible.builtin.command: >
+    virt-install
+      --name {{ virt_install_nocloud_name }}
+      --vcpus {{ virt_install_nocloud_vcpus }}
+      --memory {{ virt_install_nocloud_memory }}
+      --import --disk path={{ _vm_name_abspath }}.qcow2,format=qcow2
+      --disk path={{ _vm_name_abspath }}-cidata.iso,device=cdrom
+      --os-variant {{ virt_install_nocloud_os_variant }}
+      {% for _net in virt_install_nocloud_host_networks %}
+      {% if _net.bridge is defined %}
+      --network model=virtio,bridge={{ _net.bridge }}{{ ',mac=' + _net.mac if _net.mac is defined }}
+      {% elif _net.network is defined %}
+      --network model=virtio,network={{ _net.network }}{{ ',mac=' + _net.mac if _net.mac is defined }}
+      {% else %}
+      --nonetworks
+      {% endif %}
+      {% endfor %}
+      --graphics vnc,listen=0.0.0.0 --noautoconsole
+      {{ '--autostart' if virt_install_nocloud_autostart | bool else '' }}
+      {{ '--cpu host' if virt_install_nocloud_nested_virt | bool else '' }}
+  args:
+    creates: /etc/libvirt/qemu/{{ virt_install_nocloud_name }}.xml
+
+...
+# vim: ft=yaml.ansible
