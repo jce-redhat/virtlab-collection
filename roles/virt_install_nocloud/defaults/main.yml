@@ -7,7 +7,7 @@ virt_install_nocloud_disk_size: 20G
 virt_install_nocloud_autostart: true
 virt_install_nocloud_pxeboot: false
 
-virt_install_nocloud_backing_disk: rhel-9.1-x86_64-kvm.qcow2
+virt_install_nocloud_backing_disk: rhel-baseos-9.1-x86_64-kvm.qcow2
 virt_install_nocloud_backing_disk_copy: false
 virt_install_nocloud_image_dir: /var/lib/libvirt/images
 virt_install_nocloud_image_mode: 0640
@@ -53,9 +53,9 @@ virt_install_nocloud_rhsm_package_upgrade: false
 virt_install_nocloud_rhsm_activation_key: ''
 virt_install_nocloud_rhsm_org: ''
 
-# ssh public key added to cloud config for logging in to the default
-# cloud-init user account
-virt_install_nocloud_host_ssh_public_key: '~/.ssh/virtlab-key.pub'
+# host ssh public key gets added to cloud config for logging in to the
+# default cloud-init user account
+virt_install_nocloud_host_ssh_public_key: '~/.ssh/id_rsa.pub'
 
 # additional ssh public keys to add to the default cloud-user account
 virt_install_nocloud_user_ssh_keys: []

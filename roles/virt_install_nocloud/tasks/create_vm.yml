@@ -26,64 +26,35 @@
 
 - name: Set virtual machine disk permissions
   ansible.builtin.file:
-    path: '{{ _vm_name_abspath }}.qcow2'
+    path: '{{ virt_install_nocloud_image_dir }}/{{ virt_install_nocloud_name }}.qcow2'
     mode: '{{ virt_install_nocloud_image_mode }}'
 
-- name: Check existence of cidata ISO
-  ansible.builtin.stat:
-    path: '{{ _vm_name_abspath }}-cidata.iso'
-  register: _cidata
-
 - name: Create cloud-init files
-  when:
-    - virt_install_nocloud_use_cloudinit | bool
-    - not _cidata.stat.exists
+  when: virt_install_nocloud_use_cloudinit | bool
   block:
     - name: Create temp directory for cloud-init files
       ansible.builtin.tempfile:
         state: directory
         suffix: -virt_install_nocloud
-      register: _virt_install_nocloud_temp_dir
+      register: _cidata_tempdir
 
     - name: Create meta-data file
       ansible.builtin.template:
         src: meta-data.j2
-        dest: '{{ _virt_install_nocloud_temp_dir.path }}/meta-data'
+        dest: '{{ _cidata_tempdir.path }}/meta-data'
         mode: 0644
 
     - name: Create user-data file
       ansible.builtin.template:
         src: user-data.j2
-        dest: '{{ _virt_install_nocloud_temp_dir.path }}/user-data'
+        dest: '{{ _cidata_tempdir.path }}/user-data'
         mode: 0644
 
     - name: Create network-config file
       ansible.builtin.template:
         src: network-config.j2
-        dest: '{{ _virt_install_nocloud_temp_dir.path }}/network-config'
+        dest: '{{ _cidata_tempdir.path }}/network-config'
         mode: 0644
-
-    - name: Create cidata ISO
-      ansible.builtin.command: >
-        genisoimage
-          -output {{ _vm_name_abspath }}-cidata.iso
-          -V cidata -r -J user-data meta-data network-config
-      args:
-        chdir: '{{ _virt_install_nocloud_temp_dir.path }}'
-        creates: '{{ _vm_name_abspath }}-cidata.iso'
-
-    - name: Set perms on cidata ISO
-      ansible.builtin.file:
-        path: '{{ _vm_name_abspath }}-cidata.iso'
-        owner: qemu
-        group: qemu
-        mode: '{{ virt_install_nocloud_image_cidata_mode }}'
-  always:
-    - name: Remove temp directory
-      ansible.builtin.file:
-        path: '{{ _virt_install_nocloud_temp_dir.path | default("") }}'
-        state: absent
-      when: _virt_install_nocloud_temp_dir is defined
 
 - name: Create virtual machine "{{ virt_install_nocloud_name }}"
   ansible.builtin.command: >
@@ -91,8 +62,7 @@
       --name {{ virt_install_nocloud_name }}
       --vcpus {{ virt_install_nocloud_vcpus }}
       --memory {{ virt_install_nocloud_memory }}
-      --import --disk path={{ _vm_name_abspath }}.qcow2,format=qcow2
-      --disk path={{ _vm_name_abspath }}-cidata.iso,device=cdrom
+      --import --disk path={{ virt_install_nocloud_image_dir }}/{{ virt_install_nocloud_name }}.qcow2,format=qcow2
       --os-variant {{ virt_install_nocloud_os_variant }}
       {% for _net in virt_install_nocloud_host_networks %}
       {% if _net.bridge is defined %}
@@ -103,11 +73,21 @@
       --nonetworks
       {% endif %}
       {% endfor %}
+      {% if virt_install_nocloud_use_cloudinit | bool %}
+      --cloud-init user-data=user-data,meta-data=meta-data,network-config=network-config
+      {% endif %}
       --graphics vnc,listen=0.0.0.0 --noautoconsole
       {{ '--autostart' if virt_install_nocloud_autostart | bool else '' }}
       {{ '--cpu host' if virt_install_nocloud_nested_virt | bool else '' }}
   args:
+    chdir: '{{ _cidata_tempdir.path }}'
     creates: /etc/libvirt/qemu/{{ virt_install_nocloud_name }}.xml
+
+- name: Remove temp directory
+  ansible.builtin.file:
+    path: '{{ _cidata_tempdir.path | default("") }}'
+    state: absent
+  when: _cidata_tempdir is defined
 
 ...
 # vim: ft=yaml.ansible
